@@ -50,6 +50,19 @@ public sealed class SnapshotStore
         }
     }
 
+    /// <summary>
+    /// Remove multiple domains and persist once (used by crash recovery).
+    /// </summary>
+    public void RemoveRange(IEnumerable<string> domainIds)
+    {
+        lock (_lock)
+        {
+            foreach (var id in domainIds)
+                _snapshots.Remove(id);
+            Persist();
+        }
+    }
+
     public void Clear()
     {
         lock (_lock)
@@ -88,7 +101,12 @@ public sealed class SnapshotStore
             var dir = Path.GetDirectoryName(_filePath);
             if (dir != null) Directory.CreateDirectory(dir);
             var json = JsonSerializer.Serialize(_snapshots, JsonOptions);
-            File.WriteAllText(_filePath, json);
+
+            // Atomic write: write to temp file then rename over real file.
+            // Prevents corruption if the process crashes mid-write.
+            var tmpPath = _filePath + ".tmp";
+            File.WriteAllText(tmpPath, json);
+            File.Move(tmpPath, _filePath, overwrite: true);
         }
         catch
         {

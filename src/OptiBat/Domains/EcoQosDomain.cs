@@ -108,6 +108,9 @@ public sealed class EcoQosDomain : IOptimizationDomain
         _isActive = throttled > 0;
         sw.Stop();
 
+        // Persist throttled PIDs into the snapshot for crash recovery
+        baseline.Set("throttledPids", _throttledPids.ToList());
+
         return ApplyResult.Ok(Id,
             $"Throttled {throttled} processes (skipped {skipped}, failed {failed})",
             throttled, failed, skipped, sw.Elapsed);
@@ -115,7 +118,12 @@ public sealed class EcoQosDomain : IOptimizationDomain
 
     public void Revert(DomainSnapshot baseline)
     {
-        foreach (var pid in _throttledPids)
+        // On crash recovery, _throttledPids is empty — restore from snapshot
+        var pidsToRevert = _throttledPids.Count > 0
+            ? _throttledPids
+            : new HashSet<uint>(baseline.Get<List<uint>>("throttledPids") ?? []);
+
+        foreach (var pid in pidsToRevert)
         {
             var handle = NativeMethods.OpenProcess(
                 NativeMethods.PROCESS_SET_INFORMATION, false, pid);

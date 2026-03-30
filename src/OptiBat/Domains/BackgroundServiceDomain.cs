@@ -53,8 +53,9 @@ public sealed class BackgroundServiceDomain : IOptimizationDomain
                     if (!NativeMethods.QueryServiceStatus(hService, out var status))
                         continue;
 
-                    // Get start type
+                    // Get start type — skip this service if we can't determine it
                     var startType = GetServiceStartType(hService);
+                    if (startType == uint.MaxValue) continue;
 
                     serviceStates[serviceName] = new ServiceState
                     {
@@ -138,7 +139,7 @@ public sealed class BackgroundServiceDomain : IOptimizationDomain
         }
 
         _servicesStopped = stopped;
-        _isActive = stopped > 0 || skipped > 0; // Active if we changed anything
+        _isActive = stopped > 0; // Only active if we actually stopped something
         sw.Stop();
 
         return ApplyResult.Ok(Id,
@@ -212,13 +213,13 @@ public sealed class BackgroundServiceDomain : IOptimizationDomain
     {
         // Query required buffer size
         NativeMethods.QueryServiceConfigW(hService, IntPtr.Zero, 0, out var bytesNeeded);
-        if (bytesNeeded == 0) return NativeMethods.SERVICE_AUTO_START;
+        if (bytesNeeded == 0) return uint.MaxValue; // Sentinel: query failed
 
         var buffer = Marshal.AllocHGlobal((int)bytesNeeded);
         try
         {
             if (!NativeMethods.QueryServiceConfigW(hService, buffer, bytesNeeded, out _))
-                return NativeMethods.SERVICE_AUTO_START;
+                return uint.MaxValue; // Sentinel: query failed
 
             // dwStartType is at offset 4 (after dwServiceType)
             return (uint)Marshal.ReadInt32(buffer, 4);

@@ -13,14 +13,14 @@ namespace OptiBat.Domains;
 public sealed class GpuPowerDomain : IOptimizationDomain
 {
     private bool _isActive;
-    private bool _hasDiscreteGpu;
+    private bool? _hasDiscreteGpu;
 
     private const string GPU_PREFS_KEY = @"Software\Microsoft\DirectX\UserGpuPreferences";
     private const string GPU_GLOBAL_KEY = @"Software\Microsoft\DirectX\GraphicsSettings";
 
     public string Id => "gpu-power";
     public string DisplayName => "GPU Power Management";
-    public bool IsSupported => DetectDiscreteGpu();
+    public bool IsSupported => _hasDiscreteGpu ??= DetectDiscreteGpuCore();
     public bool IsActive => _isActive;
 
     public DomainSnapshot CaptureBaseline()
@@ -57,7 +57,7 @@ public sealed class GpuPowerDomain : IOptimizationDomain
     {
         var sw = Stopwatch.StartNew();
 
-        if (!_hasDiscreteGpu)
+        if (_hasDiscreteGpu != true)
             return ApplyResult.Ok(Id, "No discrete GPU detected — skipping", skipped: 1, duration: sw.Elapsed);
 
         try
@@ -102,13 +102,11 @@ public sealed class GpuPowerDomain : IOptimizationDomain
         IsActive = _isActive,
         Summary = _isActive
             ? "GPU preference: power saving"
-            : _hasDiscreteGpu ? "Inactive" : "No discrete GPU",
+            : _hasDiscreteGpu == true ? "Inactive" : "No discrete GPU",
     };
 
-    private bool DetectDiscreteGpu()
+    private bool DetectDiscreteGpuCore()
     {
-        if (_hasDiscreteGpu) return true;
-
         try
         {
             // Check for known discrete GPU vendors in display adapters
@@ -128,8 +126,7 @@ public sealed class GpuPowerDomain : IOptimizationDomain
             }
 
             // If more than 1 display adapter, likely has discrete + integrated
-            _hasDiscreteGpu = adapterCount >= 2;
-            return _hasDiscreteGpu;
+            return adapterCount >= 2;
         }
         catch
         {

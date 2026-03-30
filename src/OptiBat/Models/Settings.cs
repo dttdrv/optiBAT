@@ -105,9 +105,10 @@ public sealed class Settings
 
     public async void SaveDebounced()
     {
-        _debounceCts?.Cancel();
-        _debounceCts = new CancellationTokenSource();
-        var token = _debounceCts.Token;
+        var old = Interlocked.Exchange(ref _debounceCts, new CancellationTokenSource());
+        old?.Cancel();
+        old?.Dispose();
+        var token = _debounceCts!.Token;
 
         // Snapshot JSON on calling thread to avoid torn reads
         var json = JsonSerializer.Serialize(this, JsonOptions);

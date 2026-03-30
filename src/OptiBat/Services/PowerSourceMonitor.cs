@@ -71,8 +71,15 @@ public sealed class PowerSourceMonitor : IDisposable
         if (_disposed) return;
         if (e.Mode != PowerModes.StatusChange) return;
 
-        var currentIsOnAC = BatteryInfoService.IsOnACPower();
-        CheckTransition(currentIsOnAC);
+        // Marshal to dispatcher thread — OnPowerModeChanged fires on a
+        // SystemEvents thread, while OnPollTick fires on the dispatcher.
+        // CheckTransition must be single-threaded to avoid data races.
+        _pollTimer.Dispatcher.BeginInvoke(() =>
+        {
+            if (_disposed) return;
+            var currentIsOnAC = BatteryInfoService.IsOnACPower();
+            CheckTransition(currentIsOnAC);
+        });
     }
 
     private void CheckTransition(bool currentIsOnAC)

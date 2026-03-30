@@ -165,28 +165,33 @@ public sealed class OptimizationEngine : IDisposable
         if (!_snapshotStore.HasSnapshots) return;
 
         Emit("Detected snapshots from previous session — attempting recovery...");
+        var toRemove = new List<string>();
 
         foreach (var snapshot in _snapshotStore.GetAll())
         {
             var domain = _domains.FirstOrDefault(d => d.Id == snapshot.DomainId);
             if (domain == null)
             {
-                _snapshotStore.Remove(snapshot.DomainId);
+                toRemove.Add(snapshot.DomainId);
                 continue;
             }
 
             try
             {
                 domain.Revert(snapshot);
-                _snapshotStore.Remove(snapshot.DomainId);
                 Emit($"Recovered {domain.DisplayName}");
             }
             catch (Exception ex)
             {
                 Emit($"Recovery failed for {domain.DisplayName}: {ex.Message}");
-                _snapshotStore.Remove(snapshot.DomainId);
             }
+
+            toRemove.Add(snapshot.DomainId);
         }
+
+        // Batch removal: single lock + single file write
+        if (toRemove.Count > 0)
+            _snapshotStore.RemoveRange(toRemove);
     }
 
     /// <summary>

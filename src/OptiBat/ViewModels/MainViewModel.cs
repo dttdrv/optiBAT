@@ -268,27 +268,34 @@ public sealed class MainViewModel : ViewModelBase
         IsOptimizing = true;
         StatusText = "Optimizing...";
 
-        Task.Run(() => _engine.ActivateAll()).ContinueWith(task =>
+        try
         {
-            Application.Current?.Dispatcher.Invoke(() =>
+            Task.Run(() => _engine.ActivateAll()).ContinueWith(task =>
             {
-                IsOptimizing = false;
-                IsActive = _engine.IsActive;
-                RefreshDomainStatuses();
-
-                if (task.IsFaulted)
+                Application.Current?.Dispatcher.Invoke(() =>
                 {
-                    StatusText = $"Failed: {task.Exception?.InnerException?.Message}";
-                    return;
-                }
+                    IsOptimizing = false;
+                    IsActive = _engine.IsActive;
+                    RefreshDomainStatuses();
 
-                var result = task.Result;
-                ShowResultBanner(result.Message);
-                StatusText = result.Success
-                    ? $"Optimized in {result.Duration.TotalMilliseconds:F0}ms"
-                    : $"Failed: {result.Message}";
-            });
-        }, TaskScheduler.Default);
+                    if (task.IsFaulted)
+                    {
+                        StatusText = $"Failed: {task.Exception?.InnerException?.Message}";
+                        return;
+                    }
+
+                    var result = task.Result;
+                    ShowResultBanner(result.Message);
+                    StatusText = result.Success
+                        ? $"Optimized in {result.Duration.TotalMilliseconds:F0}ms"
+                        : $"Failed: {result.Message}";
+                });
+            }, TaskScheduler.Default);
+        }
+        catch
+        {
+            IsOptimizing = false;
+        }
     }
 
     private void RevertNow()
@@ -297,25 +304,32 @@ public sealed class MainViewModel : ViewModelBase
         IsOptimizing = true;
         StatusText = "Reverting...";
 
-        Task.Run(() => _engine.RevertAll()).ContinueWith(task =>
+        try
         {
-            Application.Current?.Dispatcher.Invoke(() =>
+            Task.Run(() => _engine.RevertAll()).ContinueWith(task =>
             {
-                IsOptimizing = false;
-                IsActive = _engine.IsActive;
-                RefreshDomainStatuses();
-
-                if (task.IsFaulted)
+                Application.Current?.Dispatcher.Invoke(() =>
                 {
-                    StatusText = $"Revert failed: {task.Exception?.InnerException?.Message}";
-                    return;
-                }
+                    IsOptimizing = false;
+                    IsActive = _engine.IsActive;
+                    RefreshDomainStatuses();
 
-                var result = task.Result;
-                ShowResultBanner(result.Message);
-                StatusText = "All optimizations reverted";
-            });
-        }, TaskScheduler.Default);
+                    if (task.IsFaulted)
+                    {
+                        StatusText = $"Revert failed: {task.Exception?.InnerException?.Message}";
+                        return;
+                    }
+
+                    var result = task.Result;
+                    ShowResultBanner(result.Message);
+                    StatusText = "All optimizations reverted";
+                });
+            }, TaskScheduler.Default);
+        }
+        catch
+        {
+            IsOptimizing = false;
+        }
     }
 
     private void RestartAsAdmin()

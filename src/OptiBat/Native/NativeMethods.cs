@@ -414,7 +414,9 @@ internal static partial class NativeMethods
         }
         finally
         {
-            Marshal.FreeHGlobal(ptr);
+            // PowerGetActiveScheme allocates via LocalAlloc.
+            // FreeCoTaskMem calls LocalFree on Windows — correct deallocator.
+            Marshal.FreeCoTaskMem(ptr);
         }
     }
 

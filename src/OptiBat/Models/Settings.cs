@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace OptiBat.Models;
 
@@ -15,7 +16,11 @@ public sealed class Settings
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "optiBAT");
     private static readonly string SettingsFile = Path.Combine(SettingsDir, "settings.json");
     private static readonly string SnapshotFile = Path.Combine(SettingsDir, "snapshots.json");
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals
+    };
 
     private CancellationTokenSource? _debounceCts;
 

@@ -31,11 +31,11 @@ public sealed class TrayIconService : IDisposable
         UpdateIcon(100, true); // Default
     }
 
-    public void UpdateIcon(int batteryPercent, bool isOnAC)
+    public void UpdateIcon(double watts, bool isOnAC)
     {
         if (_trayIcon == null) return;
 
-        var icon = RenderBatteryIcon(batteryPercent, isOnAC);
+        var icon = RenderBatteryIcon(watts, isOnAC);
         _trayIcon.Icon = icon;
     }
 
@@ -73,7 +73,7 @@ public sealed class TrayIconService : IDisposable
         return menu;
     }
 
-    private static System.Drawing.Icon RenderBatteryIcon(int percent, bool isOnAC)
+    private static System.Drawing.Icon RenderBatteryIcon(double watts, bool isOnAC)
     {
         var bmp = new System.Drawing.Bitmap(32, 32);
         using var g = System.Drawing.Graphics.FromImage(bmp);
@@ -81,11 +81,21 @@ public sealed class TrayIconService : IDisposable
         g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
         g.Clear(DrawColor.Transparent);
 
-        var text = isOnAC ? "AC" : $"{percent}";
+        // Show wattage on battery, "AC" when plugged in
+        string text;
+        if (isOnAC)
+            text = "AC";
+        else if (watts < 0.1)
+            text = "--";
+        else if (watts < 10)
+            text = $"{watts:F1}";  // e.g., "7.2"
+        else
+            text = $"{watts:F0}";  // e.g., "15"
+
         var isDarkTaskbar = ThemeService.IsTaskbarDark();
         var textColor = isDarkTaskbar ? DrawColor.White : DrawColor.Black;
 
-        var fontSize = text.Length <= 2 ? 18f : 14f;
+        var fontSize = text.Length <= 2 ? 18f : text.Length <= 3 ? 15f : 12f;
         using var font = new DrawFont("Segoe UI", fontSize, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Pixel);
         using var brush = new System.Drawing.SolidBrush(textColor);
 

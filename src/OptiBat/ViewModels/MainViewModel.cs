@@ -30,6 +30,9 @@ public sealed class MainViewModel : ViewModelBase
     private bool _isReadOnlyMode;
     private bool _showResult;
     private string _resultText = "";
+    private double _baselineDrainWatts; // Drain rate when optimization first activated
+    private double _savedWatts;
+    private string _savingsText = "";
 
     // ── Domain toggles ───────────────────────────────────────────────
     private bool _autoOptimize;
@@ -62,6 +65,8 @@ public sealed class MainViewModel : ViewModelBase
     public string StatusText { get => _statusText; set => SetProperty(ref _statusText, value); }
     public bool IsReadOnlyMode { get => _isReadOnlyMode; set => SetProperty(ref _isReadOnlyMode, value); }
     public bool ShowResult { get => _showResult; set => SetProperty(ref _showResult, value); }
+    public double SavedWatts { get => _savedWatts; set => SetProperty(ref _savedWatts, value); }
+    public string SavingsText { get => _savingsText; set => SetProperty(ref _savingsText, value); }
     public string ResultText { get => _resultText; set => SetProperty(ref _resultText, value); }
 
     public bool AutoOptimize
@@ -204,6 +209,22 @@ public sealed class MainViewModel : ViewModelBase
             EstimatedTime = info.EstimatedTimeRemaining.HasValue
                 ? $"{info.EstimatedTimeRemaining.Value.Hours}h {info.EstimatedTimeRemaining.Value.Minutes}m"
                 : "--:--";
+
+            // Savings tracking: compare current drain to baseline recorded at optimization start
+            if (_isActive && !info.IsOnAC && _baselineDrainWatts > 0.1 && info.Watts > 0.01)
+            {
+                var saved = _baselineDrainWatts - info.Watts;
+                SavedWatts = Math.Max(0, saved);
+                if (saved > 0.05)
+                    SavingsText = $"Saving ~{saved:F1} W ({saved / _baselineDrainWatts * 100:F0}% less drain)";
+                else
+                    SavingsText = "Measuring savings...";
+            }
+            else if (!_isActive || info.IsOnAC)
+            {
+                SavedWatts = 0;
+                SavingsText = "";
+            }
         }
 
         var dispatcher = Application.Current?.Dispatcher;
@@ -216,6 +237,10 @@ public sealed class MainViewModel : ViewModelBase
     private void OnPowerSourceChanged(bool isOnAC)
     {
         if (_isReadOnlyMode || !_settings.AutoOptimizeOnBattery) return;
+
+        // Record baseline drain before optimization (for savings calculation)
+        if (!isOnAC)
+            _baselineDrainWatts = Watts;
 
         Task.Run(() =>
         {
@@ -237,9 +262,19 @@ public sealed class MainViewModel : ViewModelBase
                 IsActive = _engine.IsActive;
                 RefreshDomainStatuses();
                 ShowResultBanner(result.Message);
-                StatusText = isOnAC
-                    ? "On AC power — optimizations reverted"
-                    : $"On battery — {result.Message}";
+
+                if (isOnAC)
+                {
+                    _baselineDrainWatts = 0;
+                    SavedWatts = 0;
+                    SavingsText = "";
+                    StatusText = "On AC power — optimizations reverted";
+                }
+                else
+                {
+                    SavingsText = "Measuring savings...";
+                    StatusText = $"On battery — {result.Message}";
+                }
             });
         });
     }
@@ -267,6 +302,7 @@ public sealed class MainViewModel : ViewModelBase
         if (IsOptimizing) return;
         IsOptimizing = true;
         StatusText = "Optimizing...";
+        _baselineDrainWatts = Watts; // Record drain before optimization
 
         try
         {

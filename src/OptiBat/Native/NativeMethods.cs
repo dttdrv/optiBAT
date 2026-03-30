@@ -121,19 +121,20 @@ internal static partial class NativeMethods
     [StructLayout(LayoutKind.Sequential)]
     internal struct SYSTEM_BATTERY_STATE
     {
-        [MarshalAs(UnmanagedType.U1)] public bool AcOnLine;
-        [MarshalAs(UnmanagedType.U1)] public bool BatteryPresent;
-        [MarshalAs(UnmanagedType.U1)] public bool Charging;
-        [MarshalAs(UnmanagedType.U1)] public bool Discharging;
-        public uint Spare1;
-        public uint Spare2;
-        public uint Spare3;
-        public uint MaxCapacity;
-        public uint RemainingCapacity;
-        public int Rate; // mW, negative = discharging
-        public uint EstimatedTime; // seconds, 0xFFFFFFFF = unknown
-        public uint DefaultAlert1;
-        public uint DefaultAlert2;
+        [MarshalAs(UnmanagedType.U1)] public bool AcOnLine;      // offset 0
+        [MarshalAs(UnmanagedType.U1)] public bool BatteryPresent; // offset 1
+        [MarshalAs(UnmanagedType.U1)] public bool Charging;       // offset 2
+        [MarshalAs(UnmanagedType.U1)] public bool Discharging;    // offset 3
+        public byte Spare1;                                        // offset 4
+        public byte Spare2;                                        // offset 5
+        public byte Spare3;                                        // offset 6
+        public byte Tag;                                           // offset 7
+        public uint MaxCapacity;                                   // offset 8  (mWh)
+        public uint RemainingCapacity;                             // offset 12 (mWh)
+        public int Rate;                                           // offset 16 (mW, negative = discharging)
+        public uint EstimatedTime;                                 // offset 20 (seconds, 0xFFFFFFFF = unknown)
+        public uint DefaultAlert1;                                 // offset 24
+        public uint DefaultAlert2;                                 // offset 28
     }
 
     [StructLayout(LayoutKind.Sequential)]

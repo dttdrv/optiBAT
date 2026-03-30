@@ -167,7 +167,7 @@
 
                     <!-- Battery stats card -->
                     <Border Grid.Row="0" Style="{StaticResource DomainCard}">
-                        <UniformGrid Columns="4">
+                        <UniformGrid Columns="5">
                             <StackPanel Margin="4">
                                 <TextBlock Text="Charge" Style="{StaticResource StatLabel}" />
                                 <TextBlock Style="{StaticResource StatValue}">
@@ -189,7 +189,24 @@
                                 <TextBlock Text="Source" Style="{StaticResource StatLabel}" />
                                 <TextBlock Text="{Binding BatteryStatus}" Style="{StaticResource StatValue}" />
                             </StackPanel>
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Saving" Style="{StaticResource StatLabel}" />
+                                <TextBlock Style="{StaticResource StatValue}"
+                                           Foreground="{StaticResource BatteryGoodBrush}">
+                                    <TextBlock.Text>
+                                        <Binding Path="SavedWatts" StringFormat="{}{0:F1} W" />
+                                    </TextBlock.Text>
+                                </TextBlock>
+                            </StackPanel>
                         </UniformGrid>
+                    </Border>
+
+                    <!-- Savings banner (when active) -->
+                    <Border Grid.Row="0" Margin="0,0,0,-4" VerticalAlignment="Bottom"
+                            Visibility="{Binding IsActive, Converter={StaticResource BoolToVis}}"
+                            IsHitTestVisible="False">
+                        <TextBlock Text="{Binding SavingsText}" FontSize="11" Margin="16,0"
+                                   Foreground="{StaticResource BatteryGoodBrush}" HorizontalAlignment="Right" />
                     </Border>
 
                     <!-- Domain status cards -->

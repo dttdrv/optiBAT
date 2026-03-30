@@ -51,9 +51,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         {
             Dispatcher.Invoke(() =>
             {
-                _trayService.UpdateIcon(info.ChargePercent, info.IsOnAC);
+                _trayService.UpdateIcon(info.Watts, info.IsOnAC);
                 _trayService.UpdateTooltip(
-                    $"optiBAT — {info.ChargePercent}% {info.StatusText}\n" +
+                    $"optiBAT — {info.Watts:F1}W | {info.ChargePercent}% {info.StatusText}\n" +
                     (_viewModel.IsActive ? "Optimizations active" : "Monitoring"));
             });
         };

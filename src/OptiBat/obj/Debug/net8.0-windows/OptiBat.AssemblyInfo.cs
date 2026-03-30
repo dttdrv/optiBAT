@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyDescriptionAttribute("Battery life optimizer for Windows laptops")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5b2cdd59866a38342e7c699309e85db5bf4d872c")]
 [assembly: System.Reflection.AssemblyProductAttribute("optiBAT")]
 [assembly: System.Reflection.AssemblyTitleAttribute("OptiBat")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

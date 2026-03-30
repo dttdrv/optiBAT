@@ -1,0 +1,141 @@
+using System.Diagnostics;
+using Microsoft.Win32;
+using OptiBat.Models;
+
+namespace OptiBat.Domains;
+
+/// <summary>
+/// Sets Windows GPU preference to power-saving (integrated GPU).
+/// Uses the documented UserGpuPreferences registry key that Windows
+/// Settings > Display > Graphics uses under the hood.
+/// Does NOT require vendor-specific APIs (NVIDIA/AMD).
+/// </summary>
+public sealed class GpuPowerDomain : IOptimizationDomain
+{
+    private bool _isActive;
+    private bool _hasDiscreteGpu;
+
+    private const string GPU_PREFS_KEY = @"Software\Microsoft\DirectX\UserGpuPreferences";
+    private const string GPU_GLOBAL_KEY = @"Software\Microsoft\DirectX\GraphicsSettings";
+
+    public string Id => "gpu-power";
+    public string DisplayName => "GPU Power Management";
+    public bool IsSupported => DetectDiscreteGpu();
+    public bool IsActive => _isActive;
+
+    public DomainSnapshot CaptureBaseline()
+    {
+        var snapshot = new DomainSnapshot { DomainId = Id };
+
+        try
+        {
+            // Capture global GPU preference
+            using var globalKey = Registry.CurrentUser.OpenSubKey(GPU_GLOBAL_KEY);
+            var globalPref = globalKey?.GetValue("DefaultGraphicsPreference") as int? ?? 0;
+            snapshot.Set("globalPreference", globalPref);
+
+            // Capture per-app preferences
+            var appPrefs = new Dictionary<string, string>();
+            using var prefsKey = Registry.CurrentUser.OpenSubKey(GPU_PREFS_KEY);
+            if (prefsKey != null)
+            {
+                foreach (var valueName in prefsKey.GetValueNames())
+                {
+                    var value = prefsKey.GetValue(valueName) as string;
+                    if (value != null)
+                        appPrefs[valueName] = value;
+                }
+            }
+            snapshot.Set("appPreferences", appPrefs);
+        }
+        catch { }
+
+        return snapshot;
+    }
+
+    public ApplyResult Apply(DomainSnapshot baseline)
+    {
+        var sw = Stopwatch.StartNew();
+
+        if (!_hasDiscreteGpu)
+            return ApplyResult.Ok(Id, "No discrete GPU detected — skipping", skipped: 1, duration: sw.Elapsed);
+
+        try
+        {
+            // Set global default to power saving (1 = power saving, 2 = high performance)
+            using var globalKey = Registry.CurrentUser.CreateSubKey(GPU_GLOBAL_KEY);
+            globalKey.SetValue("DefaultGraphicsPreference", 1, RegistryValueKind.DWord);
+
+            _isActive = true;
+            sw.Stop();
+            return ApplyResult.Ok(Id, "Global GPU preference set to power saving", optimized: 1, duration: sw.Elapsed);
+        }
+        catch (Exception ex)
+        {
+            sw.Stop();
+            return ApplyResult.Fail(Id, $"Failed to set GPU preference: {ex.Message}", sw.Elapsed);
+        }
+    }
+
+    public void Revert(DomainSnapshot baseline)
+    {
+        try
+        {
+            var originalPref = baseline.Get<int>("globalPreference");
+            using var globalKey = Registry.CurrentUser.CreateSubKey(GPU_GLOBAL_KEY);
+
+            if (originalPref == 0)
+                globalKey.DeleteValue("DefaultGraphicsPreference", throwOnMissingValue: false);
+            else
+                globalKey.SetValue("DefaultGraphicsPreference", originalPref, RegistryValueKind.DWord);
+        }
+        catch { }
+
+        _isActive = false;
+    }
+
+    public DomainStatus GetStatus() => new()
+    {
+        DomainId = Id,
+        DisplayName = DisplayName,
+        IsSupported = IsSupported,
+        IsActive = _isActive,
+        Summary = _isActive
+            ? "GPU preference: power saving"
+            : _hasDiscreteGpu ? "Inactive" : "No discrete GPU",
+    };
+
+    private bool DetectDiscreteGpu()
+    {
+        if (_hasDiscreteGpu) return true;
+
+        try
+        {
+            // Check for known discrete GPU vendors in display adapters
+            using var key = Registry.LocalMachine.OpenSubKey(
+                @"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}");
+            if (key == null) return false;
+
+            int adapterCount = 0;
+            foreach (var subKeyName in key.GetSubKeyNames())
+            {
+                if (!int.TryParse(subKeyName, out _)) continue;
+                using var adapterKey = key.OpenSubKey(subKeyName);
+                var desc = adapterKey?.GetValue("DriverDesc") as string ?? "";
+
+                if (!string.IsNullOrEmpty(desc))
+                    adapterCount++;
+            }
+
+            // If more than 1 display adapter, likely has discrete + integrated
+            _hasDiscreteGpu = adapterCount >= 2;
+            return _hasDiscreteGpu;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public void Dispose() { }
+}

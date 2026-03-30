@@ -1,0 +1,257 @@
+<ui:FluentWindow x:Class="OptiBat.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        xmlns:converters="clr-namespace:OptiBat.Converters"
+        Title="optiBAT — Battery Optimizer"
+        Height="660" Width="960"
+        MinHeight="480" MinWidth="720"
+        WindowBackdropType="Mica"
+        ExtendsContentIntoTitleBar="True">
+
+    <ui:FluentWindow.Resources>
+        <converters:BatteryPercentToBrushConverter x:Key="BatteryBrush" />
+        <converters:BoolToVisibilityConverter x:Key="BoolToVis" />
+        <converters:WattsConverter x:Key="WattsConv" />
+        <converters:ActiveStatusBrushConverter x:Key="ActiveBrush" />
+        <converters:InverseBoolConverter x:Key="InverseBool" />
+    </ui:FluentWindow.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Title Bar -->
+        <ui:TitleBar Grid.Row="0" Title="optiBAT" ShowMaximize="True" ShowMinimize="True" />
+
+        <!-- Main Content -->
+        <DockPanel Grid.Row="1" LastChildFill="True">
+
+            <!-- Read-only banner -->
+            <Border DockPanel.Dock="Top"
+                    Background="#44CC7A00" Padding="12,8"
+                    Visibility="{Binding IsReadOnlyMode, Converter={StaticResource BoolToVis}}">
+                <DockPanel>
+                    <ui:Button DockPanel.Dock="Right" Content="Restart as Admin"
+                               Appearance="Caution" Margin="12,0,0,0"
+                               Command="{Binding RestartAsAdminCommand}" />
+                    <TextBlock Text="Running without admin privileges — optimization disabled"
+                               VerticalAlignment="Center" />
+                </DockPanel>
+            </Border>
+
+            <!-- Result notification banner -->
+            <Border DockPanel.Dock="Top"
+                    Background="#332E8B57" Padding="12,8"
+                    Visibility="{Binding ShowResult, Converter={StaticResource BoolToVis}}">
+                <TextBlock Text="{Binding ResultText}" FontWeight="SemiBold" />
+            </Border>
+
+            <!-- Status Bar -->
+            <StatusBar DockPanel.Dock="Bottom" Padding="12,6">
+                <StatusBarItem>
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="8" Height="8" Margin="0,0,6,0"
+                                 Fill="{Binding IsActive, Converter={StaticResource ActiveBrush}}" />
+                        <TextBlock Text="{Binding StatusText}" />
+                    </StackPanel>
+                </StatusBarItem>
+                <Separator />
+                <StatusBarItem HorizontalAlignment="Right">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding ChargePercent, StringFormat='{}{0}%'}" Margin="0,0,8,0" />
+                        <TextBlock Text="{Binding BatteryStatus}"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                </StatusBarItem>
+            </StatusBar>
+
+            <!-- Header with battery bar -->
+            <Border DockPanel.Dock="Top" Padding="16,12">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <ui:Button Content="Revert" Margin="0,0,8,0"
+                                   Command="{Binding RevertNowCommand}"
+                                   Visibility="{Binding IsActive, Converter={StaticResource BoolToVis}}" />
+                        <ui:Button Content="Optimize Now" Appearance="Primary"
+                                   Command="{Binding OptimizeNowCommand}" />
+                    </StackPanel>
+
+                    <StackPanel>
+                        <DockPanel Margin="0,0,0,6">
+                            <TextBlock Text="{Binding ChargePercent, StringFormat='{}{0}%'}"
+                                       FontSize="24" FontWeight="Bold" DockPanel.Dock="Left" />
+                            <TextBlock Text="{Binding BatteryStatus}" VerticalAlignment="Bottom"
+                                       Margin="8,0,0,4"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        </DockPanel>
+                        <ProgressBar Height="6" Minimum="0" Maximum="100"
+                                     Value="{Binding ChargePercent, Mode=OneWay}"
+                                     Foreground="{Binding ChargePercent, Converter={StaticResource BatteryBrush}}" />
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+
+            <!-- Main content area: sidebar + content -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="220" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Left sidebar: toggles -->
+                <ScrollViewer Grid.Column="0" Padding="16,8" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+
+                        <!-- Auto-optimize -->
+                        <StackPanel Margin="0,0,0,16">
+                            <TextBlock Text="AUTOMATION" Style="{StaticResource StatLabel}" FontWeight="SemiBold" />
+                            <DockPanel Margin="0,8,0,0">
+                                <ui:ToggleSwitch DockPanel.Dock="Right"
+                                                 IsChecked="{Binding AutoOptimize}" />
+                                <TextBlock Text="Auto on battery" VerticalAlignment="Center" />
+                            </DockPanel>
+                        </StackPanel>
+
+                        <Separator Margin="0,0,0,16" />
+
+                        <!-- Domain toggles -->
+                        <TextBlock Text="OPTIMIZATIONS" Style="{StaticResource StatLabel}" FontWeight="SemiBold"
+                                   Margin="0,0,0,8" />
+
+                        <DockPanel Margin="0,4,0,0">
+                            <ui:ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding EcoQosEnabled}" />
+                            <TextBlock Text="Power Throttling" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <DockPanel Margin="0,4,0,0">
+                            <ui:ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding TimerResolutionEnabled}" />
+                            <TextBlock Text="Timer Resolution" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <DockPanel Margin="0,4,0,0">
+                            <ui:ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding BackgroundServicesEnabled}" />
+                            <TextBlock Text="Background Services" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <DockPanel Margin="0,4,0,0">
+                            <ui:ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding UsbSuspendEnabled}" />
+                            <TextBlock Text="USB Suspend" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <DockPanel Margin="0,4,0,0">
+                            <ui:ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding NetworkPowerEnabled}" />
+                            <TextBlock Text="Network Power" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <DockPanel Margin="0,4,0,0">
+                            <ui:ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding GpuPowerEnabled}" />
+                            <TextBlock Text="GPU Power" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <DockPanel Margin="0,4,0,0">
+                            <ui:ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding CpuParkingEnabled}" />
+                            <TextBlock Text="CPU Parking" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <DockPanel Margin="0,4,0,0">
+                            <ui:ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding DiskCoalescingEnabled}" />
+                            <TextBlock Text="Disk I/O" VerticalAlignment="Center" />
+                        </DockPanel>
+
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Right content area -->
+                <Grid Grid.Column="1" Margin="0,8,16,8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Battery stats card -->
+                    <Border Grid.Row="0" Style="{StaticResource DomainCard}">
+                        <UniformGrid Columns="4">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Charge" Style="{StaticResource StatLabel}" />
+                                <TextBlock Style="{StaticResource StatValue}">
+                                    <TextBlock.Text>
+                                        <Binding Path="ChargePercent" StringFormat="{}{0}%" />
+                                    </TextBlock.Text>
+                                </TextBlock>
+                            </StackPanel>
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Drain" Style="{StaticResource StatLabel}" />
+                                <TextBlock Text="{Binding Watts, Converter={StaticResource WattsConv}}"
+                                           Style="{StaticResource StatValue}" />
+                            </StackPanel>
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Remaining" Style="{StaticResource StatLabel}" />
+                                <TextBlock Text="{Binding EstimatedTime}" Style="{StaticResource StatValue}" />
+                            </StackPanel>
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Source" Style="{StaticResource StatLabel}" />
+                                <TextBlock Text="{Binding BatteryStatus}" Style="{StaticResource StatValue}" />
+                            </StackPanel>
+                        </UniformGrid>
+                    </Border>
+
+                    <!-- Domain status cards -->
+                    <ItemsControl Grid.Row="1" ItemsSource="{Binding DomainStatuses}" Margin="0,0,0,8">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="2" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Margin="0,0,8,8" Padding="12"
+                                        Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                                        BorderThickness="1" CornerRadius="6">
+                                    <DockPanel>
+                                        <Ellipse DockPanel.Dock="Left" Width="8" Height="8"
+                                                 Margin="0,0,8,0" VerticalAlignment="Center"
+                                                 Fill="{Binding IsActive, Converter={StaticResource ActiveBrush}}" />
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"
+                                                       FontSize="12" />
+                                            <TextBlock Text="{Binding Summary}" FontSize="11"
+                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Activity log -->
+                    <Border Grid.Row="2" Style="{StaticResource DomainCard}">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Text="Activity Log"
+                                       FontWeight="SemiBold" Margin="0,0,0,8" />
+                            <ListBox ItemsSource="{Binding ActivityLog}"
+                                     BorderThickness="0" Background="Transparent"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}" TextWrapping="Wrap"
+                                                   FontSize="11" Margin="0,1"
+                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </DockPanel>
+                    </Border>
+
+                </Grid>
+            </Grid>
+        </DockPanel>
+
+        <!-- Loading overlay -->
+        <Border Grid.RowSpan="2" Background="#88000000"
+                Visibility="{Binding IsOptimizing, Converter={StaticResource BoolToVis}}">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <ui:ProgressRing Width="48" Height="48" IsIndeterminate="True" />
+                <TextBlock Text="Optimizing..." Margin="0,12,0,0" FontSize="14"
+                           HorizontalAlignment="Center" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</ui:FluentWindow>
